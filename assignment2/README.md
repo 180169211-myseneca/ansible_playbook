@@ -38,6 +38,7 @@ SSH into the Bastion node and use kubectl to check the status of the Kubernetes 
 ssh -i bastion_host_key ec2-user@$BASTION_IP
 kubectl get nodes
 Verify that the Kubernetes nodes, including the newly added workers, are in the Ready state.
+```
 
 6. Destroy Infrastructure
 If needed, you can destroy the entire infrastructure using Terraform. Navigate to the Terraform directory and run:
