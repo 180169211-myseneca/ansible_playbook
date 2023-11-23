@@ -79,5 +79,4 @@ terraform destroy
 ```
 This command cleans up all resources created by Terraform, effectively tearing down the Kubernetes cluster and associated infrastructure.
 
-
 These detailed steps provide a clear and comprehensive guide for deploying, expanding, and managing a Kubernetes cluster using Ansible and Terraform. Adjust the commands and playbook paths based on your specific environment and configurations.
