@@ -1,0 +1,10 @@
+---
+- name: executing controlplane
+  import_playbook: "controlplane.yaml"
+  
+  
+- name: executing bastion_host
+  import_playbook: "ansible_playbook.yml"
+
+- name: executing worker
+  import_playbook: "worker.yaml"

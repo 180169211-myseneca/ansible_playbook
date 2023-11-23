@@ -1,0 +1,82 @@
+---
+- name: Install worker
+  hosts: _worker
+  gather_facts: true
+  become: yes
+  remote_user: ec2-user
+
+  tasks:
+    - name: Check if kubelet.conf exists
+      become_user: root
+      ansible.builtin.stat:
+        path: /etc/kubernetes/kubelet.conf  
+      register: kubelet_conf_stat
+
+    - name: End the worker if exist in the cluster
+      meta: end_host
+      when: kubelet_conf_stat.stat.exists == True
+  
+  
+    - name: Disable swap # Disable swap and zram
+      become_user: root
+      command: "swapoff -a"
+
+    - name: Check if zram0 exists
+      stat:
+        path: "/dev/zram0"
+      register: zram_stat
+
+    - name: Reset zram if it exists
+      command: "zramctl --reset /dev/zram0"
+      when: zram_stat.stat.exists
+
+    - name: Add Kubernetes repository
+      block:
+        - name: Create /etc/yum.repos.d/kubernetes.repo if it does not exist
+          copy:
+            content: |
+              [kubernetes]
+              name=Kubernetes
+              baseurl=https://pkgs.k8s.io/core:/stable:/v1.26/rpm/
+              enabled=1
+              gpgcheck=1
+              repo_gpgcheck=1
+              gpgkey=https://pkgs.k8s.io/core:/stable:/v1.26/rpm/repodata/repomd.xml.key
+            dest: /etc/yum.repos.d/kubernetes.repo
+          when: not (ansible_check_mode | bool)
+
+        - name: Update package manager repositories
+          yum:
+            name: "kubelet,kubeadm,kubectl"
+            enablerepo: kubernetes
+            state: latest
+
+        - name: Install required packages
+          package:
+            name: "{{ item }}"
+            state: latest
+          loop:
+            - docker
+            - kubelet
+            - kubeadm
+            - kubectl
+          become: true
+  
+    - name: Enable and restart services
+      systemd:
+        name: "{{ item }}"
+        enabled: yes
+        state: restarted
+      loop:
+        - docker
+        - kubelet
+
+    - name: Copy ajoin-command.sh to worker
+      copy:
+        src: /home/ec2-user/.kube/join-command.sh
+        dest: /home/ec2-user/join-command.sh
+
+
+    - name: Join the cluster if not intialized
+      become_user: root
+      command: "sh /home/ec2-user/join-command.sh"

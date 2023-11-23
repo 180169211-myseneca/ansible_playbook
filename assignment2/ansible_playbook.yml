@@ -1,0 +1,64 @@
+---
+- name: Kubernetes Cluster Installation
+  hosts: _bastion_host
+  gather_facts: true
+  become: true
+
+  tasks:
+    - name: Add Kubernetes repository
+      block:
+        - name: Create /etc/yum.repos.d/kubernetes.repo if it does not exist
+          copy:
+            content: |
+              [kubernetes]
+              name=Kubernetes
+              baseurl=https://pkgs.k8s.io/core:/stable:/v1.26/rpm/
+              enabled=1
+              gpgcheck=1
+              repo_gpgcheck=1
+              gpgkey=https://pkgs.k8s.io/core:/stable:/v1.26/rpm/repodata/repomd.xml.key
+            dest: /etc/yum.repos.d/kubernetes.repo
+          when: not (ansible_check_mode | bool)
+
+    - name: Update package manager repositories
+      dnf:
+        name: "kubelet,kubeadm,kubectl"
+        enablerepo: kubernetes
+        state: latest
+
+
+    - name: Install kubectl
+      dnf:
+        name: kubectl
+        state: present
+        disable_excludes: kubernetes
+      become: yes
+
+    - name: Display completion message
+      debug:
+        msg: "kubectl has been successfully installed on the target hosts."
+
+
+    - name: Check if admin.conf exists
+      become_user: root
+      ansible.builtin.stat:
+        path: /etc/kubernetes/admin.conf  
+      register: admin_conf_stat
+  
+    - name: Create ~/.kube directory
+      file:
+        path: /home/ec2-user/.kube
+        state: directory
+  
+    - name: Ensure the local directory exists
+      ansible.builtin.file:
+        path: "~/.kube"
+        state: directory
+
+
+    - name: Copy admin.conf to ~/.kube/config
+      become_user: root
+      ansible.builtin.copy:
+        src: /home/ec2-user/.kube/config
+        dest: /home/ec2-user/.kube/config
+  

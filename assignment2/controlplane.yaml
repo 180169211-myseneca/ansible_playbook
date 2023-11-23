@@ -1,0 +1,128 @@
+---
+- name: Install Control Plane
+  hosts: _controlplane
+  gather_facts: true
+  become: yes
+  remote_user: ec2-user
+
+  tasks:
+    - name: Disable swap # Disable swap and zram
+      become_user: root
+      command: "swapoff -a"
+
+    - name: Check if zram0 exists
+      stat:
+        path: "/dev/zram0"
+      register: zram_stat
+
+    - name: Reset zram if it exists
+      command: "zramctl --reset /dev/zram0"
+      when: zram_stat.stat.exists
+
+    - name: Add Kubernetes repository
+      block:
+        - name: Create /etc/yum.repos.d/kubernetes.repo if it does not exist
+          copy:
+            content: |
+              [kubernetes]
+              name=Kubernetes
+              baseurl=https://pkgs.k8s.io/core:/stable:/v1.26/rpm/
+              enabled=1
+              gpgcheck=1
+              repo_gpgcheck=1
+              gpgkey=https://pkgs.k8s.io/core:/stable:/v1.26/rpm/repodata/repomd.xml.key
+            dest: /etc/yum.repos.d/kubernetes.repo
+          when: not (ansible_check_mode | bool)
+
+        - name: Update package manager repositories
+          yum:
+            name: "kubelet,kubeadm,kubectl"
+            enablerepo: kubernetes
+            state: latest
+
+        - name: Install required packages
+          package:
+            name: "{{ item }}"
+            state: latest
+          loop:
+            - docker
+            - kubelet
+            - kubeadm
+            - kubectl
+          become: true
+
+    - name: Enable and restart services
+      systemd:
+        name: "{{ item }}"
+        enabled: yes
+        state: restarted
+      loop:
+        - docker
+        - kubelet
+
+    - name: Initialize Kubernetes if no configuration file exists
+      command: "kubeadm init --pod-network-cidr=10.244.0.0/16 --ignore-preflight-errors=NumCPU,Mem"
+      args:
+        creates: /etc/kubernetes/kubelet.conf
+
+    - name: Set permissions for admin.conf
+      file:
+        path: /etc/kubernetes/admin.conf
+        mode: '0644'
+
+    - name: Create ~/.kube directory
+      file:
+        path: "{{ ansible_env.HOME }}/.kube"
+        state: directory
+
+    - name: Copy admin.conf to ~/.kube/config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ ansible_env.HOME }}/.kube/config"
+        remote_src: yes
+
+    - name: Change ownership of ~/.kube/config
+      become: true
+      file:
+          path: "{{ ansible_env.HOME }}/.kube/config"
+          owner: ec2-user
+          group: ec2-user
+          mode: '0644'
+
+    - name: Install Flannel pod network if no networking pod exists
+      command: "kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml"
+      args:
+        creates: kube-flannel
+      register: flannel_result
+      ignore_errors: true
+
+    - name: Generate join command
+      shell: "kubeadm token create --print-join-command > /etc/kubernetes/join-command.sh"
+      args:
+        creates: /etc/kubernetes/join-command.sh
+      register: join_command_result
+      ignore_errors: yes
+
+    - name: Debug join command result
+      debug:
+        var: join_command_result
+
+    - name: Create ~/.kube directory
+      file:
+        path: "{{ ansible_env.HOME }}/.kube"
+        state: directory
+      delegate_to: localhost
+
+    - name: downloading join-command.sh
+      become_user: root
+      ansible.builtin.fetch:
+        src: /etc/kubernetes/join-command.sh
+        dest: /home/ec2-user/.kube/join-command.sh
+        flat: yes
+        
+    - name: downloading config files
+      become_user: root
+      ansible.builtin.fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/ec2-user/.kube/config
+        flat: yes
