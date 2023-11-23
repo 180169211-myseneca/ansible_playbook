@@ -45,6 +45,7 @@ If needed, you can destroy the entire infrastructure using Terraform. Navigate t
 
 ```bash
 terraform destroy
+```
 This command cleans up all resources created by Terraform, effectively tearing down the Kubernetes cluster and associated infrastructure.
 ```
 
