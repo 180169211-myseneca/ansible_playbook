@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Configuration Management Automation with Ansible
 
 This repository contains the starter code intended for the coursework in ACS730
@@ -94,3 +95,7 @@ $ curl 10.0.10.98:32163
 $ kubectl delete deployment nginx
 deployment.apps "nginx" deleted
 ```
+=======
+# ansible_playbook
+Ansible_playbook
+>>>>>>> origin/main
