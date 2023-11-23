@@ -8,13 +8,13 @@ Ensure the following prerequisites are met before starting the Kubernetes cluste
 
 #### Pre-provisioned Resources:
 
-## Access to pre-provisioned instances, including the Bastion Host, Control Plane, and Worker nodes.
+#### Access to pre-provisioned instances, including the Bastion Host, Control Plane, and Worker nodes.
 SSH Key Pair:
 
-## Generate an SSH key pair for secure access to instances.
+#### Generate an SSH key pair for secure access to instances.
 Ansible Installed:
 
-## Install Ansible on your local machine to orchestrate the deployment.
+#### Install Ansible on your local machine to orchestrate the deployment.
 Deployment Steps
 ### Clone the Repository
 Clone the repository containing the Ansible playbooks and configuration files:
